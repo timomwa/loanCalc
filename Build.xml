@@ -1,0 +1,212 @@
+<project name="LOAN_CALCULATOR">
+
+	<property file="build.properties" />
+
+
+	<property name="src" location="src" />
+	<property name="dir.build" location="BUILD" />
+	<property name="sql" location="sql" />
+	<path id="classpath.base">
+		<pathelement location="${src}" />
+		<pathelement location="${dir.build}" />
+		<pathelement location="${lib.dir}/hibernate3.jar" />
+		<!--exclude in war-->
+		<pathelement location="${lib.dir}/slf4j-api-1.6.0.jar" />
+		<!--exclude in war-->
+		<fileset dir="${lib.dir}/hibernate" includes="**/*.jar" />
+		<!--exclude in war-->
+		<pathelement location="${lib.dir}/mysql-connector-java-5.1.14-bin.jar" />
+		<pathelement location="${lib.dir}/log4j-1.2.16.jar" />
+		<pathelement location="${lib.dir}/slf4j-log4j12-1.6.0.jar" />
+		<pathelement location="${lib.dir}/commons-beanutils.jar" />
+		<!--pathelement location="${lib.dir}/ejb3-persistence.jar" /-->
+		<!-- causes conflict. don't not include -->
+		<pathelement location="${lib.dir}/ejb-3.0.jar" />
+		<!--exclude in war-->
+		<pathelement location="${lib.dir}/stripes.jar" />
+		<pathelement location="${lib.dir}/json.jar" />
+		<pathelement location="${lib.dir}/dom4j-1.5.jar" />
+		<!--exclude in war-->
+		<pathelement location="${lib.dir}/hibernate-jpa-2.0-api-1.0.0.Final.jar" />
+		<!--exclude in war-->
+		<pathelement location="${lib.dir}/antlr-2.7.6.jar" />
+		<!--exclude in war-->
+		<pathelement location="${lib.dir}/hibernate-tools-3.2.4.GA.jar" />
+		<!--exclude in war-->
+		<pathelement location="${lib.dir}/javax.persistence-2.0.0.jar" />
+		<pathelement location="${lib.dir}/commons-logging.jar.jar" />
+		<!--pathelement location="${lib.dir}/persistence-api.jar" /-->
+		<!--exclude in war-->
+	</path>
+	<path id="classpath.tools">
+		<path refid="classpath.base" />
+		<pathelement location="${lib.dir}/commons-logging.jar" />
+		<pathelement location="${lib.dir}/freemarker-2.3.16.jar" />
+		<pathelement location="${lib.dir}/hibernate-tools-3.2.4.GA.jar" />
+	</path>
+
+	<!--I create the build and dist directories-->
+	<target name="make.all.dirs">
+		<mkdir dir="${dir.build}" />
+	</target>
+
+	<!--If I made some changes and want to be clean the build files 100%, I run this task -->
+	<target name="clean" description="removes old deployments">
+		<delete dir="${dir.build}" verbose="true" />
+		<delete dir="logs" verbose="true" />
+	</target>
+
+	<taskdef name="htools" classname="org.hibernate.tool.ant.HibernateToolTask" classpathref="classpath.tools" />
+
+	<target name="exportDDL" depends="compile,new_db" description="Creates schema">
+		<mkdir dir="${sql}" />
+		<htools destdir="${sql}">
+			<classpath refid="classpath.tools" />
+			<annotationconfiguration configurationfile="${src}/hibernate.cfg.xml" />
+			<hbm2ddl drop="true" outputfilename="sample.sql" />
+		</htools>
+	</target>
+	<target name="show.properties">
+		<echo>${hibernate.tools.home}${hibernate.tools.path}</echo>
+	</target>
+	<target name="compile" depends="make.all.dirs" description="Compiles source files">
+
+		<javac srcdir="${src}" destdir="${dir.build}" classpathref="classpath.base" />
+	</target>
+
+
+	<target name="initialize" depends="compile">
+		<java classname="com.timothy.loancalculator.initializers.InitializerClass" classpathref="classpath.base" />
+	</target>
+
+
+	<target name="new_db" depends="compile">
+		<java classname="com.timothy.loancalculator.initializers.TestDb" classpathref="classpath.base">
+			<arg value="${mysql.url}"/>
+			<arg value="${mysql.username}"/>
+			<arg value="${mysql.password}"/>
+		</java>
+	</target>
+
+	<target name="war" depends="compile,jar" description="compiles code, creates jar and sends to jboss, then deploys the web module">
+
+		<jar destfile="${jboss.home}/server/default/deploy/${war.name}">
+
+			<zipfileset dir="WebContent">
+				<include name="index.jsp" />
+			</zipfileset>
+			<zipfileset dir="WebContent/WEB-INF" prefix="WEB-INF">
+				<include name="web.xml" />
+				<include name="**/*.jsp" />
+			</zipfileset>
+			<zipfileset dir="." prefix="WEB-INF/classes">
+				<include name="**/*.properties" />
+			</zipfileset>
+			<zipfileset dir="." prefix="WEB-INF/classes/com/timothy/loancalculator/dao/">
+				<include name="jndi.properties" />
+			</zipfileset>
+			<zipfileset dir="WebContent/WEB-INF" prefix="WEB-INF">
+				<include name="jboss-web.xml" />
+			</zipfileset>
+			<zipfileset dir="${dir.build}" prefix="WEB-INF/classes" includes="**/*.class">
+				<exclude name="com/timothy/loancalculator/ejb/LoanCalculatorBean.class" />
+				<exclude name="com/timothy/loancalculator/ejb/LoanCalculatorBeanRemote.class" />
+				<exclude name="com/timothy/loancalculator/entity/FinanceOption.class" />
+				<exclude name="com/timothy/loancalculator/entity/Institution.class" />
+				<exclude name="com/timothy/loancalculator/entity/InterestRate.class" />
+			</zipfileset>
+
+			<zipfileset dir="WebContent/images" prefix="images" includes="**/*.*" />
+			<zipfileset dir="WebContent/js" prefix="js" includes="**/*.*" />
+			<zipfileset dir="WebContent/css" prefix="css" includes="**/*.*" />
+			<zipfileset dir="WebContent/jsp" prefix="WEB-INF/jsp" includes="*.jsp" />
+			<zipfileset dir="WebContent/jsp/common" prefix="WEB-INF/jsp/common" includes="**/*.*" />
+			<zipfileset dir="WebContent/WEB-INF/lib" prefix="WEB-INF/lib/">
+				<exclude name="hibernate3.jar" />
+				<exclude name="slf4j-api-1.6.0.jar" />
+				<exclude name="hibernate/**/**.jar" />
+				<exclude name="ejb-3.0.jar" />
+				<exclude name="slf4j-api-1.6.0.jar" />
+				<exclude name="mysql-connector-java-5.1.14-bin.jar" />
+				<exclude name="ejb3-persistence.jar" />
+				<exclude name="dom4j-1.5.jar" />
+				<exclude name="hibernate-jpa-2.0-api-1.0.0.Final.jar" />
+				<exclude name="antlr-2.7.6.jar" />
+				<exclude name="hibernate-tools-3.2.4.GA.jar" />
+				<exclude name="javax.persistence-2.0.0.jar" />
+				<exclude name="commons-logging.jar.jar" />
+				<exclude name="persistence-api.jar" />
+
+
+			</zipfileset>
+
+
+			<manifest>
+				<attribute name="Built-By" value="${user.name}" />
+				<attribute name="Main-Class" value="${main.class}" />
+				<section name="common">
+					<attribute name="Specification-Title" value="${component.name}" />
+					<attribute name="Specification-Version" value="${component.version}" />
+					<attribute name="Specification-Vendor" value="${component.vendor}" />
+					<attribute name="Implementation-Title" value="${component.name}" />
+					<attribute name="Implementation-Version" value="${component.version} ${TODAY}" />
+					<attribute name="Implementation-Vendor" value="${component.vendor}" />
+				</section>
+				<!--finally, use the magically generated libs path. -->
+				<attribute name="Class-Path" value="${libswweb.project}" />
+			</manifest>
+
+		</jar>
+
+		<copy file="loan_calc_mysql-ds.xml" tofile="${jboss.home}/server/default/deploy/loan_calc_mysql-ds.xml">
+		</copy>
+
+
+	</target>
+
+	<target name="redeploy" depends="clean.all,compile,jar,war" />
+	<target name="clean.all" depends="jboss.clean,clean" />
+
+	<target name="jar" depends="compile" description="creates runnable jar file">
+		<jar destfile="${jboss.home}/server/default/deploy/${jar.name}">
+			<!--jar destfile="${dir.dist}/${jar.name}"-->
+			<zipfileset dir="${dir.build}">
+				<include name="com/timothy/loancalculator/ejb/LoanCalculatorBean.class" />
+				<include name="com/timothy/loancalculator/ejb/LoanCalculatorBeanRemote.class" />
+				<include name="com/timothy/loancalculator/entity/FinanceOption.class" />
+				<include name="com/timothy/loancalculator/entity/Institution.class" />
+				<include name="com/timothy/loancalculator/entity/InterestRate.class" />
+			</zipfileset>
+			<zipfileset dir="${src}" includes="**/*.properties" />
+			<zipfileset dir="${src}/META-INF" prefix="META-INF" includes="**/*.*" />
+			<!--manifest>
+					<attribute name="Built-By" value="${user.name}" /-->
+			<!--attribute name="Main-Class" value="${main.class}" / -->
+			<!--section name="common">
+						<attribute name="Specification-Title" value="${component.name}" />
+						<attribute name="Specification-Version" value="${component.version}" />
+						<attribute name="Specification-Vendor" value="${component.vendor}" />
+						<attribute name="Implementation-Title" value="${component.name}" />
+						<attribute name="Implementation-Version" value="${component.version} ${TODAY}" />
+						<attribute name="Implementation-Vendor" value="${component.vendor}" />
+					</section-->
+			<!-- finally, use the magically generated libs path. >
+					<attribute name="Class-Path" value="${libs.project}" />
+				</manifest-->
+		</jar>
+	</target>
+
+
+
+
+	<target name="jboss.clean" depends="clean" description="removes old deployments">
+		<delete includeEmptyDirs="true" verbose="true">
+			<fileset dir="${jboss.home}/server/default/deploy">
+				<include name="**/*.ear" />
+				<include name="**/*.war" />
+			</fileset>
+		</delete>
+		<delete dir="${jboss.home}/server/default/tmp" verbose="true" />
+		<delete dir="${jboss.home}/server/default/work" verbose="true" />
+	</target>
+</project>

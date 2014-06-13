@@ -1,0 +1,10 @@
+alter table financeoption drop foreign key FK3E460CCFDAF8BC25;
+alter table financeoption drop foreign key FK3E460CCF6834D8DE;
+drop table if exists financeoption;
+drop table if exists institution;
+drop table if exists interestrate;
+create table financeoption (id integer not null auto_increment, name varchar(255), institution_id_fk integer, interest_rate_id_fk integer, primary key (id));
+create table institution (id integer not null auto_increment, name varchar(60) not null unique, primary key (id));
+create table interestrate (id integer not null auto_increment, name varchar(255), rate double precision unique, primary key (id));
+alter table financeoption add index FK3E460CCFDAF8BC25 (interest_rate_id_fk), add constraint FK3E460CCFDAF8BC25 foreign key (interest_rate_id_fk) references interestrate (id);
+alter table financeoption add index FK3E460CCF6834D8DE (institution_id_fk), add constraint FK3E460CCF6834D8DE foreign key (institution_id_fk) references institution (id);
